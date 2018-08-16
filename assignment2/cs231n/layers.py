@@ -177,19 +177,18 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # Referencing the original paper (https://arxiv.org/abs/1502.03167)   #
         # might prove to be helpful.                                          #
         #######################################################################
-        ex = np.mean(x, axis=0)
-        varx = np.var(x, axis=0)
+        ex = np.mean(x, axis=0)   # (N,)
+        varx = np.var(x, axis=0)  # (N,)
 
-        varx_sqrt = np.sqrt(varx + eps)
-        x_zeroed = x - ex
+        varx_sqrt = np.sqrt(varx + eps)  # (N,)
+        x_zeroed = x - ex                # (N, D)
 
-        x_hat = x_zeroed / varx_sqrt  # x_hat
-        x = gamma * x_hat + beta
+        x_hat = x_zeroed / varx_sqrt  # (N, D)
+        out = gamma * x_hat + beta  # (N, D)
 
         running_mean = momentum * running_mean + (1 - momentum) * ex
         running_var = momentum * running_var + (1 - momentum) * varx
 
-        out = x
         cache = x_zeroed, varx_sqrt, x_hat, gamma
         #######################################################################
         #                           END OF YOUR CODE                          #
@@ -246,14 +245,19 @@ def batchnorm_backward(dout, cache):
     dgamma = np.sum(dout * x_hat, axis=0)
     dbeta = np.sum(dout, axis=0)
 
-    N = dout.shape[0]
+    N, D = dout.shape
 
-    dvar_dx = -2 / N * x_zeroed * dout     # 2 * (x - Ex)
-    dx_tilde_dx = (N - 1) / N * dout  # (N, D)
-    ksi = 1 / varx_sqrt               # sqrt(Var(x) + eps)
-    dksi_dx = -1/2 * ksi**3 * dvar_dx
-    dx_hat_dx = dx_tilde_dx * ksi + x_zeroed * dksi_dx
-    dx = gamma * dx_hat_dx
+    dx0 = dout * gamma  # dxhat
+    dx1_1 = dx0 / varx_sqrt
+    dx1_2 = np.sum(dx0 * x_zeroed, axis=0)  # d(1/var)
+    dx2 = dx1_2 / (-varx_sqrt**2)
+    dx3 = dx2 / (2 * varx_sqrt)
+    dx4 = dx3 * np.ones([N, D]) / N
+    dx5 = dx4 * 2 * x_zeroed
+    dx6_1 = (dx5 + dx1_1)
+    dx6_2 = -1 * np.sum(dx5 + dx1_1, axis=0)  # dmu
+    dx7 = dx6_2 * np.ones([N, D]) / N
+    dx = dx6_1 + dx7
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -284,7 +288,13 @@ def batchnorm_backward_alt(dout, cache):
     # should be able to compute gradients with respect to the inputs in a     #
     # single statement; our implementation fits on a single 80-character line.#
     ###########################################################################
-    pass
+    N = dout.shape[0]
+    x_zeroed, varx_sqrt, _, gamma = cache
+
+    dbeta = np.sum(dout, axis=0)
+    dgamma = np.sum(x_zeroed / varx_sqrt * dout, axis=0)
+    dx = gamma / (varx_sqrt * N) * (N * dout - np.sum(dout, axis=0)\
+        - x_zeroed / varx_sqrt**2 * np.sum(dout * x_zeroed, axis=0))
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -326,7 +336,16 @@ def layernorm_forward(x, gamma, beta, ln_param):
     # transformations you could perform, that would enable you to copy over   #
     # the batch norm code and leave it almost unchanged?                      #
     ###########################################################################
-    pass
+    ex = np.mean(x, axis=1, keepdims=True)   # (D,1)
+    varx = np.var(x, axis=1, keepdims=True)  # (D,1)
+
+    varx_sqrt = np.sqrt(varx + eps)  # (D,)
+    x_zeroed = x - ex          # (N, D)
+
+    x_hat = x_zeroed / varx_sqrt # (N, D)
+    out = gamma * x_hat + beta   # (N, D)
+
+    cache = x_zeroed, varx_sqrt, x_hat, gamma
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -357,7 +376,24 @@ def layernorm_backward(dout, cache):
     # implementation of batch normalization. The hints to the forward pass    #
     # still apply!                                                            #
     ###########################################################################
-    pass
+    N, D = dout.shape
+    x_zeroed, varx_sqrt, _, gamma = cache
+    x_norm = x_zeroed / varx_sqrt
+
+    dbeta = np.sum(dout, axis=0)
+    dgamma = np.sum(x_norm * dout, axis=0)
+
+    dx0 = dout * gamma  # dxhat
+    dx1_1 = dx0 / varx_sqrt
+    dx1_2 = np.sum(dx0 * x_zeroed, axis=1, keepdims=True)  # d(1/var)
+    dx2 = dx1_2 / (-varx_sqrt**2)
+    dx3 = dx2 / (2 * varx_sqrt)
+    dx4 = dx3 * np.ones([N, D]) / D
+    dx5 = dx4 * 2 * x_zeroed
+    dx6_1 = (dx5 + dx1_1)
+    dx6_2 = -1 * np.sum(dx5 + dx1_1, axis=1, keepdims=True)  # dmu
+    dx7 = dx6_2 * np.ones([N, D]) / D
+    dx = dx6_1 + dx7
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
