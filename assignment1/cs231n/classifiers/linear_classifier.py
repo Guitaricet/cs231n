@@ -102,7 +102,7 @@ class LinearClassifier(object):
     #                           END OF YOUR CODE                              #
     ###########################################################################
     return y_pred
-  
+
   def loss(self, X_batch, y_batch, reg):
     """
     Compute the loss function and its derivative. 

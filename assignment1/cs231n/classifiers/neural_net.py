@@ -96,7 +96,7 @@ class TwoLayerNet(object):
     # classifier loss.                                                          #
     #############################################################################
     num_train = X.shape[0]
-    
+
     f = scores
     exp_f = np.exp(f + np.max(f, axis=1, keepdims=True))
     norm = np.sum(exp_f, axis=1)
@@ -196,7 +196,7 @@ class TwoLayerNet(object):
       # Compute loss and gradients using the current minibatch
       loss, grads = self.loss(X_batch, y=y_batch, reg=reg)
       loss_history.append(loss)
-    
+
       if loss is None:
         print('loss is None')
         break
